@@ -5,6 +5,7 @@
 #define CW_MYDEFAULT	104
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
+INT_PTR CALLBACK DialogProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam);
 
 int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int nCmdShow){
 	WNDCLASS wc = {
@@ -52,6 +53,34 @@ int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int nCmdShow){
 
 enum tag_TimerState { TS_NONE, TS_START, TS_STOP, TS_TIMEOUT };
 
+// Indirect Dialog
+#define DLGTITLE			L"InputBox"
+#define DLGFONT				L"MS Sans Serif"
+#define SIZEOF(str)			sizeof(str)/sizeof((str)[0])
+
+#pragma pack(push, 4)          
+struct tag_CustomDialog{
+	DWORD	Style; 
+	DWORD	dwExtendedStyle; 
+	WORD	nControl; 
+	short	x, y, cx, cy; 
+	WORD	Menu;							// 메뉴 리소스 서수 지정
+	WORD	WndClass;						// 윈도우 클래스 서수 지정
+	WCHAR	wszTitle[SIZEOF(DLGTITLE)];		// 대화상자 제목 지정
+	short	FontSize;						// DS_SETFONT 스타일 지정 시 폰트 크기 설정(픽셀)
+	WCHAR	wszFont[SIZEOF(DLGFONT)];		// DS_SETFONT 스타일 지정 시 폰트 이름 설정
+};
+#pragma pack(pop)
+
+LRESULT CreateCustomDialog(struct tag_CustomDialog Template, HWND hOwner, LPVOID lpArg){
+	HINSTANCE hInst;
+
+	if(hOwner == NULL){ hInst = GetModuleHandle(NULL); }
+	else{ hInst = (HINSTANCE)GetWindowLongPtr(hOwner, GWLP_HINSTANCE); }
+
+	return DialogBoxIndirectParamW(hInst, (LPCDLGTEMPLATEW)&Template, hOwner, (DLGPROC)DialogProc, (LPARAM)lpArg);
+}
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam){
 	DWORD dwStyle;
 	RECT srt, crt, wrt;
@@ -76,6 +105,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 
 	SIZE TextSize;
 
+	static struct tag_CustomDialog MyDlg = {
+		WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU | DS_MODALFRAME | DS_3DLOOK | DS_SETFONT,
+		0x0,
+		0,
+		0,0,0,0,
+		0,
+		0,
+		DLGTITLE,
+		8,
+		DLGFONT,
+	};
+
 	switch(iMessage){
 		case WM_CREATE:
 			dwStyle = GetWindowLongPtr(hWnd, GWL_STYLE);
@@ -97,6 +138,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 				case IDC_BTNEDIT:
 					// Create DialogBox
 					// Range : Hour(0 ~ 24), Min(0 ~ 59), Sec(0 ~ 59)
+					if(CreateCustomDialog(MyDlg, hWnd, NULL) == IDOK){
+						
+					}
 					break;
 
 				case IDC_BTNRESET:
@@ -104,6 +148,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 					ts = TS_NONE;
 					Hour = Minute = Second = 0;
 					KillTimer(hWnd, 1234);
+					SetWindowText(hBtnStart, L"Start");
 					break;
 
 				case IDC_BTNSTART:
@@ -120,6 +165,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 					}
 					break;
 			}
+			InvalidateRect(hWnd, NULL, FALSE);
 			return 0;
 
 		case WM_TIMER:
@@ -251,3 +297,54 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 
 	return (DefWindowProc(hWnd, iMessage, wParam, lParam));
 }
+
+INT_PTR CALLBACK DialogProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam){
+	// static HWND hDlgControl[6];
+	RECT prt, srt;
+	LONG X,Y, iDlgWidth, iDlgHeight;
+
+	switch(iMessage){
+		case WM_INITDIALOG:
+			#define OKCONTROL 0
+			#define CANCELCONTROL 1
+			#define IPSTATIC 2
+			#define PORTSTATIC 3
+			#define IPCONTROL 4
+			#define PORTCONTROL 5
+
+			//	DlgInOut = (struct tag_DlgInOut*)lParam;
+
+			/* 중앙 정렬 */
+			GetWindowRect(hWnd, &srt);
+			SetRect(&srt, srt.left, srt.top, srt.left + 300, srt.top + 180);
+			MapDialogRect(hWnd, &srt);
+			AdjustWindowRect(&srt, WS_POPUPWINDOW | WS_DLGFRAME, FALSE);
+			GetWindowRect(GetWindow(hWnd, GW_OWNER), &prt);
+
+			iDlgWidth = srt.right - srt.left;
+			iDlgHeight = srt.bottom - srt.top;
+			X = prt.left + ((prt.right - prt.left) - iDlgWidth) / 2;
+			Y = prt.top + ((prt.bottom  - prt.top) - iDlgHeight) / 2;
+			SetRect(&srt, X, Y, X + iDlgWidth, Y+ iDlgHeight);
+
+			SetWindowPos(hWnd, NULL, srt.left, srt.top, srt.right - srt.left, srt.bottom - srt.top, SWP_NOZORDER);
+
+			/* 컨트롤 생성 */
+			// SetRect(&srt, 6, 6, 6 + 120, 6 + 18);
+			// MapDialogRect(hWnd, &srt);
+			// hDlgControl[IPSTATIC] = CreateWindow(TEXT("static"), TEXT("IP"), WS_VISIBLE | WS_CHILD | SS_LEFT, srt.left, srt.top, srt.right - srt.left, srt.bottom - srt.top, hWnd, (HMENU)NULL, GetModuleHandle(NULL), NULL);
+			return TRUE;
+
+		case WM_COMMAND:
+			switch(LOWORD(wParam)){
+				case IDOK:
+				case IDCANCEL:
+					EndDialog(hWnd, LOWORD(wParam));
+					return TRUE;
+			}
+			break;
+	}
+
+	return FALSE;
+}
+
