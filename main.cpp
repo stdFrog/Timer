@@ -72,6 +72,10 @@ struct tag_CustomDialog{
 };
 #pragma pack(pop)
 
+struct tag_DlgParam{
+	int Hour, Minute, Second;
+};
+
 LRESULT CreateCustomDialog(struct tag_CustomDialog Template, HWND hOwner, LPVOID lpArg){
 	HINSTANCE hInst;
 
@@ -98,6 +102,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	HPEN hPen, hOldPen;
 	BITMAP bmp;
 
+	static struct tag_DlgParam DlgParam;
 	static int Hour, Minute, Second;
 	static enum tag_TimerState ts;
 	WCHAR szTitle[0x100];
@@ -128,9 +133,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 			hBtnStart = CreateWindowEx(WS_EX_CLIENTEDGE, L"button", L"Start", WS_CHILD | WS_VISIBLE | WS_BORDER | BS_PUSHBUTTON, 0,0,0,0, hWnd, (HMENU)(INT_PTR)IDC_BTNSTART, GetModuleHandle(NULL), NULL);
 
 			ts = TS_NONE;
-			Hour = 0;
-			Minute = 0;//DEFAULT_POMODORO;
-			Second = 5;
+			DlgParam.Hour = Hour = 0;
+			Minute = DEFAULT_POMODORO;
+			DlgParam.Minute = 0;
+			DlgParam.Second = Second = 0;
 			return 0;
 
 		case WM_COMMAND:
@@ -138,8 +144,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 				case IDC_BTNEDIT:
 					// Create DialogBox
 					// Range : Hour(0 ~ 24), Min(0 ~ 59), Sec(0 ~ 59)
-					if(CreateCustomDialog(MyDlg, hWnd, NULL) == IDOK){
-						
+					if(CreateCustomDialog(MyDlg, hWnd, &DlgParam) == IDOK){
+						SendMessage(hWnd, WM_COMMAND, MAKEWPARAM(IDC_BTNRESET, BN_CLICKED), (LPARAM)hBtnReset);
+						Hour = DlgParam.Hour;
+						Minute = DlgParam.Minute;
+						Second = DlgParam.Second;
 					}
 					break;
 
@@ -153,6 +162,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 
 				case IDC_BTNSTART:
 					// Set Timer & Btn Title Toggle
+					if(Hour == 0 && Minute == 0 && Second == 0){ break; }
+
 					GetWindowText(hBtnStart, szTitle, 0x100);
 					if(wcscmp(szTitle, L"Start") == 0){
 						ts = TS_START;
@@ -299,24 +310,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 }
 
 INT_PTR CALLBACK DialogProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam){
-	// static HWND hDlgControl[6];
+	static HWND hDlgControl[8];
+	static struct tag_DlgParam *DlgParam;
 	RECT prt, srt;
 	LONG X,Y, iDlgWidth, iDlgHeight;
+	BOOL bSucceeded;
 
 	switch(iMessage){
 		case WM_INITDIALOG:
-			#define OKCONTROL 0
-			#define CANCELCONTROL 1
-			#define IPSTATIC 2
-			#define PORTSTATIC 3
-			#define IPCONTROL 4
-			#define PORTCONTROL 5
+			#define OKCONTROL		0x500
+			#define CANCELCONTROL	0x501
+			#define HOURSTATIC		0x502
+			#define MINUTESTATIC	0x503
+			#define SECONDSTATIC	0x504
+			#define HOURCONTROL		0x505
+			#define MINUTECONTROL	0x506
+			#define SECONDCONTROL	0x507
 
-			//	DlgInOut = (struct tag_DlgInOut*)lParam;
+			DlgParam = (struct tag_DlgParam*)lParam;
 
 			/* 중앙 정렬 */
 			GetWindowRect(hWnd, &srt);
-			SetRect(&srt, srt.left, srt.top, srt.left + 300, srt.top + 180);
+			SetRect(&srt, srt.left, srt.top, srt.left + 140, srt.top + 80);
 			MapDialogRect(hWnd, &srt);
 			AdjustWindowRect(&srt, WS_POPUPWINDOW | WS_DLGFRAME, FALSE);
 			GetWindowRect(GetWindow(hWnd, GW_OWNER), &prt);
@@ -330,14 +345,39 @@ INT_PTR CALLBACK DialogProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lPar
 			SetWindowPos(hWnd, NULL, srt.left, srt.top, srt.right - srt.left, srt.bottom - srt.top, SWP_NOZORDER);
 
 			/* 컨트롤 생성 */
-			// SetRect(&srt, 6, 6, 6 + 120, 6 + 18);
-			// MapDialogRect(hWnd, &srt);
-			// hDlgControl[IPSTATIC] = CreateWindow(TEXT("static"), TEXT("IP"), WS_VISIBLE | WS_CHILD | SS_LEFT, srt.left, srt.top, srt.right - srt.left, srt.bottom - srt.top, hWnd, (HMENU)NULL, GetModuleHandle(NULL), NULL);
+			SetRect(&srt, 6, 6, 6 + 40, 6 + 18);
+			MapDialogRect(hWnd, &srt);
+			hDlgControl[HOURSTATIC - 0x500] = CreateWindow(L"static", L"H", WS_VISIBLE | WS_CHILD | SS_RIGHT, srt.left, srt.top, srt.right - srt.left, srt.bottom - srt.top, hWnd, (HMENU)(INT_PTR)HOURSTATIC, GetModuleHandle(NULL), NULL);
+			hDlgControl[HOURCONTROL - 0x500] = CreateWindowEx(WS_EX_CLIENTEDGE, L"edit", L"", WS_VISIBLE | WS_CHILD | WS_BORDER | WS_GROUP | WS_TABSTOP | ES_NUMBER | ES_RIGHT, srt.left, srt.top + (srt.bottom - srt.top), srt.right - srt.left, srt.bottom - srt.top, hWnd, (HMENU)(INT_PTR)HOURCONTROL, GetModuleHandle(NULL), NULL);
+			SendMessage(hDlgControl[HOURCONTROL - 0x500], EM_LIMITTEXT, (WPARAM)5, (LPARAM)0);
+
+			SetRect(&srt, 6 * 2 + 40, 6, (6 * 2 + 40) + 40, 6 + 18);
+			MapDialogRect(hWnd, &srt);
+			hDlgControl[MINUTESTATIC - 0x500] = CreateWindow(L"static", L"M", WS_VISIBLE | WS_CHILD | SS_RIGHT, srt.left, srt.top, srt.right - srt.left, srt.bottom - srt.top, hWnd, (HMENU)(INT_PTR)MINUTESTATIC, GetModuleHandle(NULL), NULL);
+			hDlgControl[MINUTECONTROL - 0x500] = CreateWindowEx(WS_EX_CLIENTEDGE, L"edit", L"", WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP | ES_NUMBER | ES_RIGHT, srt.left, srt.top + (srt.bottom - srt.top), srt.right - srt.left, srt.bottom - srt.top, hWnd, (HMENU)(INT_PTR)MINUTECONTROL, GetModuleHandle(NULL), NULL);
+			SendMessage(hDlgControl[MINUTECONTROL - 0x500], EM_LIMITTEXT, (WPARAM)5, (LPARAM)0);
+
+			SetRect(&srt, 6 * 3 + 40 * 2, 6, (6 * 3 + 40 * 2) + 40, 6 + 18);
+			MapDialogRect(hWnd, &srt);
+			hDlgControl[SECONDSTATIC - 0x500] = CreateWindow(L"static", L"S", WS_VISIBLE | WS_CHILD | SS_RIGHT, srt.left, srt.top, srt.right - srt.left, srt.bottom - srt.top, hWnd, (HMENU)(INT_PTR)SECONDSTATIC, GetModuleHandle(NULL), NULL);
+			hDlgControl[SECONDCONTROL - 0x500] = CreateWindowEx(WS_EX_CLIENTEDGE, L"edit", L"", WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP | ES_NUMBER | ES_RIGHT, srt.left, srt.top + (srt.bottom - srt.top), srt.right - srt.left, srt.bottom - srt.top, hWnd, (HMENU)(INT_PTR)SECONDCONTROL, GetModuleHandle(NULL), NULL);
+			SendMessage(hDlgControl[SECONDCONTROL - 0x500], EM_LIMITTEXT, (WPARAM)5, (LPARAM)0);
+
+			SetRect(&srt, 6, 60, 6 + 60, 60 + 16);
+			MapDialogRect(hWnd, &srt);
+			hDlgControl[OKCONTROL - 0x500] = CreateWindowEx(WS_EX_CLIENTEDGE, L"button", L"Ok", WS_VISIBLE | WS_CHILD | WS_BORDER | WS_GROUP | WS_TABSTOP, srt.left, srt.top, srt.right - srt.left, srt.bottom - srt.top, hWnd, (HMENU)(INT_PTR)IDOK, GetModuleHandle(NULL), NULL);
+
+			SetRect(&srt, 78, 60, 78 + 60, 60 + 16);
+			MapDialogRect(hWnd, &srt);
+			hDlgControl[CANCELCONTROL - 0x500] = CreateWindowEx(WS_EX_CLIENTEDGE, L"button", L"Cancel", WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP, srt.left, srt.top, srt.right - srt.left, srt.bottom - srt.top, hWnd, (HMENU)(INT_PTR)IDCANCEL, GetModuleHandle(NULL), NULL);
 			return TRUE;
 
 		case WM_COMMAND:
 			switch(LOWORD(wParam)){
 				case IDOK:
+					DlgParam->Hour = GetDlgItemInt(hWnd, HOURCONTROL, &bSucceeded, FALSE);
+					DlgParam->Minute = GetDlgItemInt(hWnd, MINUTECONTROL, &bSucceeded, FALSE);
+					DlgParam->Second = GetDlgItemInt(hWnd, SECONDCONTROL, &bSucceeded, FALSE);
 				case IDCANCEL:
 					EndDialog(hWnd, LOWORD(wParam));
 					return TRUE;
