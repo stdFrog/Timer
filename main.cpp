@@ -88,6 +88,7 @@ LRESULT CreateCustomDialog(struct tag_CustomDialog Template, HWND hOwner, LPVOID
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam){
 	DWORD dwStyle;
+	DWORD_PTR dwExStyle;
 	RECT srt, crt, wrt;
 
 	static HWND hBtnEdit, hBtnReset, hBtnStart;
@@ -136,7 +137,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 			hBtnReset = CreateWindowEx(WS_EX_CLIENTEDGE, L"button", L"Reset", WS_CHILD | WS_VISIBLE | WS_BORDER | BS_PUSHBUTTON, 0,0,0,0, hWnd, (HMENU)(INT_PTR)IDC_BTNRESET, GetModuleHandle(NULL), NULL);
 			hBtnStart = CreateWindowEx(WS_EX_CLIENTEDGE, L"button", L"Start", WS_CHILD | WS_VISIBLE | WS_BORDER | BS_PUSHBUTTON, 0,0,0,0, hWnd, (HMENU)(INT_PTR)IDC_BTNSTART, GetModuleHandle(NULL), NULL);
 
-
 			hMenu = CreateMenu();
 			hPopupMenu = CreatePopupMenu();
 			AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT_PTR)hPopupMenu, L"메뉴(&Menu)");
@@ -162,6 +162,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		case WM_COMMAND:
 			switch(LOWORD(wParam)){
 				case ID_TOPMOST:
+					if(bTopMost == FALSE){
+						SetWindowPos(hWnd, HWND_TOPMOST, 0,0,0,0, SWP_NOMOVE | SWP_NOSIZE);
+					}else{
+						SetWindowPos(hWnd, HWND_NOTOPMOST, 0,0,0,0, SWP_NOMOVE | SWP_NOSIZE);
+					}
 					bTopMost = !bTopMost;
 					break;
 
