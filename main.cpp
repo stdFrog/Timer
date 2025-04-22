@@ -50,6 +50,7 @@ int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int nCmdShow){
 #define IDC_BTNEDIT			0x401
 #define IDC_BTNRESET		0x402
 #define IDC_BTNSTART		0x403
+#define ID_TOPMOST			0x601
 
 enum tag_TimerState { TS_NONE, TS_START, TS_STOP, TS_TIMEOUT };
 
@@ -122,6 +123,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		DLGFONT,
 	};
 
+	HMENU hMenu, hPopupMenu;
+	static BOOL bTopMost;
+
 	switch(iMessage){
 		case WM_CREATE:
 			dwStyle = GetWindowLongPtr(hWnd, GWL_STYLE);
@@ -132,15 +136,35 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 			hBtnReset = CreateWindowEx(WS_EX_CLIENTEDGE, L"button", L"Reset", WS_CHILD | WS_VISIBLE | WS_BORDER | BS_PUSHBUTTON, 0,0,0,0, hWnd, (HMENU)(INT_PTR)IDC_BTNRESET, GetModuleHandle(NULL), NULL);
 			hBtnStart = CreateWindowEx(WS_EX_CLIENTEDGE, L"button", L"Start", WS_CHILD | WS_VISIBLE | WS_BORDER | BS_PUSHBUTTON, 0,0,0,0, hWnd, (HMENU)(INT_PTR)IDC_BTNSTART, GetModuleHandle(NULL), NULL);
 
+
+			hMenu = CreateMenu();
+			hPopupMenu = CreatePopupMenu();
+			AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT_PTR)hPopupMenu, L"메뉴(&Menu)");
+			AppendMenu(hPopupMenu, MF_STRING | MF_UNCHECKED, ID_TOPMOST, L"항상 위(&T)");
+			SetMenu(hWnd, hMenu);
+
 			ts = TS_NONE;
 			DlgParam.Hour = Hour = 0;
 			Minute = DEFAULT_POMODORO;
 			DlgParam.Minute = 0;
 			DlgParam.Second = Second = 0;
+			bTopMost = FALSE;
+			return 0;
+
+		case WM_INITMENU:
+			if(bTopMost){
+				CheckMenuItem(GetSubMenu((HMENU)wParam, 0), ID_TOPMOST, MF_BYCOMMAND | MF_CHECKED);
+			}else{
+				CheckMenuItem(GetSubMenu((HMENU)wParam, 0), ID_TOPMOST, MF_BYCOMMAND | MF_UNCHECKED);
+			}
 			return 0;
 
 		case WM_COMMAND:
 			switch(LOWORD(wParam)){
+				case ID_TOPMOST:
+					bTopMost = !bTopMost;
+					break;
+
 				case IDC_BTNEDIT:
 					// Create DialogBox
 					// Range : Hour(0 ~ 24), Min(0 ~ 59), Sec(0 ~ 59)
