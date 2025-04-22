@@ -1,3 +1,6 @@
 # ignored
 *.exe
 *.o
+*.bat
+*.rc
+!TimerSetup.exe
