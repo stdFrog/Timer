@@ -145,8 +145,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 
 			ts = TS_NONE;
 			DlgParam.Hour = Hour = 0;
-			Minute = DEFAULT_POMODORO;
-			DlgParam.Minute = 0;
+			DlgParam.Minute = Minute = DEFAULT_POMODORO;
 			DlgParam.Second = Second = 0;
 			bTopMost = FALSE;
 			return 0;
@@ -184,7 +183,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 				case IDC_BTNRESET:
 					// Reset Timer
 					ts = TS_NONE;
-					Hour = Minute = Second = 0;
+					Hour = DlgParam.Hour;
+					Minute = DlgParam.Minute;
+					Second = DlgParam.Second;
 					KillTimer(hWnd, 1234);
 					SetWindowText(hBtnStart, L"Start");
 					break;
